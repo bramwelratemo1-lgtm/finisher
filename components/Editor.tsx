@@ -511,27 +511,27 @@ export const Editor: React.FC = () => {
                        </div>
                        <div className="w-px h-4 bg-gray-700 mx-1"></div>
                        {/* Font Configuration */}
-                       <div className=\"relative\">
+                       <div className="relative">
                            <button 
                                ref={fontButtonRef}
                                onClick={() => setIsFontConfigOpen(!isFontConfigOpen)} 
-                               className=\"p-1 rounded-full hover:bg-gray-700 transition-colors\" 
-                               title=\"Configure Font\"
+                               className="p-1 rounded-full hover:bg-gray-700 transition-colors" 
+                               title="Configure Font"
                            >
                                <span className={`text-xs font-bold ${isFontConfigOpen ? 'text-brand-blue' : 'text-gray-400'}`}>Aa</span>
                            </button>
                            {isFontConfigOpen && (
-                               <div className=\"absolute top-full mt-2 right-0 bg-gray-700 border border-gray-600 rounded-md shadow-lg p-2 text-sm min-w-48 z-50\">
-                                   <div className=\"text-gray-300 font-semibold mb-2\">Font Family</div>
-                                   <div className=\"space-y-1\">
+                               <div className="absolute top-full mt-2 right-0 bg-gray-700 border border-gray-600 rounded-md shadow-lg p-2 text-sm min-w-48 z-50">
+                                   <div className="text-gray-300 font-semibold mb-2">Font Family</div>
+                                   <div className="space-y-1">
                                        {[
-                                           { value: 'font-mono', label: 'Monospace', family: 'ui-monospace, SFMono-Regular, \"SF Mono\", monospace' },
+                                           { value: 'font-mono', label: 'Monospace', family: 'ui-monospace, SFMono-Regular, "SF Mono", monospace' },
                                            { value: 'font-sans', label: 'Inter', family: 'Inter, ui-sans-serif, system-ui, sans-serif' },
-                                           { value: 'font-[\"Open_Sans\"]', label: 'Open Sans', family: '\"Open Sans\", ui-sans-serif, system-ui, sans-serif' },
-                                           { value: 'font-[\"Source_Sans_Pro\"]', label: 'Source Sans Pro', family: '\"Source Sans Pro\", ui-sans-serif, system-ui, sans-serif' },
-                                           { value: 'font-[\"Lato\"]', label: 'Lato', family: 'Lato, ui-sans-serif, system-ui, sans-serif' },
-                                           { value: 'font-[\"Roboto\"]', label: 'Roboto', family: 'Roboto, ui-sans-serif, system-ui, sans-serif' },
-                                           { value: 'font-[\"JetBrains_Mono\"]', label: 'JetBrains Mono', family: '\"JetBrains Mono\", ui-monospace, SFMono-Regular, monospace' }
+                                           { value: 'font-["Open_Sans"]', label: 'Open Sans', family: '"Open Sans", ui-sans-serif, system-ui, sans-serif' },
+                                           { value: 'font-["Source_Sans_Pro"]', label: 'Source Sans Pro', family: '"Source Sans Pro", ui-sans-serif, system-ui, sans-serif' },
+                                           { value: 'font-["Lato"]', label: 'Lato', family: 'Lato, ui-sans-serif, system-ui, sans-serif' },
+                                           { value: 'font-["Roboto"]', label: 'Roboto', family: 'Roboto, ui-sans-serif, system-ui, sans-serif' },
+                                           { value: 'font-["JetBrains_Mono"]', label: 'JetBrains Mono', family: '"JetBrains Mono", ui-monospace, SFMono-Regular, monospace' }
                                        ].map((font) => (
                                            <button
                                                key={font.value}
