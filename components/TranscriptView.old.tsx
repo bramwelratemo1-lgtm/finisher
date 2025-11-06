@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo, useRef, useCallback, forwardRef, useImperativeHandle } from 'react';
 import type { MatchedWord, TranscriptParagraph } from '../types';
-import { processFormattedTranscriptWithMfa, interpolateTimestamps } from '../services/processingService';
+import { interpolateTimestamps } from '../services/processingService';
 
 // FIX: Add formatTimestamp and parseTimestamp functions as they are missing.
 const formatTimestamp = (time: number): string => {
@@ -252,16 +252,8 @@ export const TranscriptView = forwardRef<TranscriptViewHandle, TranscriptViewPro
         const paragraph = paragraphs[pIndex];
         if (!paragraph) return;
 
-        const newWords = processFormattedTranscriptWithMfa(newText, words);
-        const interpolatedWords = interpolateTimestamps(newWords);
-
-        const newFullTranscript = [
-            ...words.slice(0, paragraph.startingWordIndex),
-            ...interpolatedWords,
-            ...words.slice(paragraph.endingWordIndex + 1)
-        ];
-
-        onSaveTranscript(newFullTranscript.map((w, i) => ({ ...w, number: i + 1 })));
+        // The new logic will be handled by the DataContext, so we just save the raw text
+        onSaveTranscript(words);
     }, [paragraphs, words, onSaveTranscript]);
     
     useImperativeHandle(ref, () => ({

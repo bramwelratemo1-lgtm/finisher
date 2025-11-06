@@ -2,9 +2,8 @@ import React, { createContext, useContext, useState, useCallback, useRef, useEff
 import type { MatchedWord, DiarizationSegment, SpeakerMap, TranscriptVersion, DataContextType } from '../types';
 import { 
     parsePyannote, parseMfa, interpolateTimestamps, parsePastedTranscript, 
-    parseWhisperJson, alignAndApplyTimestamps, advancedWordMatching,
-    parseFormattedTranscript, stripSpeakerTags, reconstructSpeakerTags, SpeakerTagInfo,
-    processFormattedTranscriptWithMfa, extractSpeakerAndText
+    parseWhisperJson, alignAndApplyTimestamps,
+    parseFormattedTranscript, stripSpeakerTags, reconstructSpeakerTags, SpeakerTagInfo
 } from '../services/processingService';
 
 const DataContext = createContext<DataContextType | null>(null);
@@ -83,58 +82,38 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
         reader.onload = (e) => {
             try {
                 const content = JSON.parse(e.target?.result as string);
-                setMfaData(parseMfa(content));
+                const words = parseMfa(content);
+                const newVersion: TranscriptVersion = { name: `MFA Upload (v${transcriptVersions.length + 1})`, words };
+                setTranscriptVersions(prev => [...prev.slice(0, currentVersionIndex + 1), newVersion]);
+                setCurrentVersionIndex(prev => prev + 1);
+                setMfaApplied(true);
             } catch (error) { alert("Invalid MFA JSON file."); }
         };
         reader.readAsText(file);
-    }, []);
+    }, [transcriptVersions.length, currentVersionIndex]);
 
     const handleWhisperUpload = useCallback((file: File) => {
         const reader = new FileReader();
         reader.onload = (e) => {
             try {
                 const content = JSON.parse(e.target?.result as string);
-                setWhisperData(parseWhisperJson(content));
+                const words = parseWhisperJson(content);
+                const newVersion: TranscriptVersion = { name: `Whisper Upload (v${transcriptVersions.length + 1})`, words };
+                setTranscriptVersions(prev => [...prev.slice(0, currentVersionIndex + 1), newVersion]);
+                setCurrentVersionIndex(prev => prev + 1);
+                setWhisperApplied(true);
             } catch (error) { alert(`Invalid Whisper JSON file: ${error.message}`); }
         };
         reader.readAsText(file);
-    }, []);
+    }, [transcriptVersions.length, currentVersionIndex]);
     
-    const handleApplyTimestamps = (data: MatchedWord[], type: 'MFA' | 'Whisper') => {
-        if (!data || currentTranscript.length === 0) return;
-        
-        // Use the advanced word matching algorithm for 99% accuracy (Montreal) or 100% (WhisperX)
-        const alignedWords = advancedWordMatching(currentTranscript, data);
-        
-        // If we have original speaker tags, reconstruct them after alignment
-        let finalTranscript = alignedWords; // Don't interpolate MFA/Whisper data - they already have precise timestamps!
-        if (originalSpeakerTags.length > 0) {
-            finalTranscript = reconstructSpeakerTags(finalTranscript, originalSpeakerTags);
-        }
-        
-        const newVersion: TranscriptVersion = {
-            name: `${type} Timestamps Applied (v${transcriptVersions.length + 1})`,
-            words: finalTranscript,
-        };
-        setTranscriptVersions(prev => [...prev.slice(0, currentVersionIndex + 1), newVersion]);
-        setCurrentVersionIndex(prev => prev + 1);
-        setMfaApplied(true);
-        setWhisperApplied(true);
-    }
-
     const handleApplyMfaTimestamps = useCallback(() => {
-        if (mfaData) {
-            handleApplyTimestamps(mfaData, 'MFA');
-            setMfaData(null);
-        }
-    }, [currentTranscript, mfaData, transcriptVersions.length, currentVersionIndex]);
+        // This function is now deprecated as MFA files are loaded directly.
+    }, []);
 
     const handleApplyWhisperTimestamps = useCallback(() => {
-        if (whisperData) {
-            handleApplyTimestamps(whisperData, 'Whisper');
-            setWhisperData(null);
-        }
-    }, [currentTranscript, whisperData, transcriptVersions.length, currentVersionIndex]);
+        // This function is now deprecated as Whisper files are loaded directly.
+    }, []);
 
     const handlePyannoteUpload = useCallback((file: File) => {
         const reader = new FileReader();

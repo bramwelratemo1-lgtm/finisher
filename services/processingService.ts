@@ -97,57 +97,6 @@ export const matchParagraphWords = (
     };
 };
 
-/**
- * Process formatted transcript with MFA JSON to create timestamped transcript
- * This is the core paragraph processor logic
- */
-export const processFormattedTranscriptWithMfa = (
-    formattedText: string,
-    mfaWords: MatchedWord[]
-): MatchedWord[] => {
-    const lines = formattedText.split('\n').filter(line => line.trim());
-    const processedWords: MatchedWord[] = [];
-    let currentMfaIdx = 0;
-
-    for (const line of lines) {
-        const { speaker, text } = extractSpeakerAndText(line);
-
-        if (text) {
-            const transcriptWords = text.split(/\s+/).filter(Boolean).map(word => ({
-                number: 0,
-                punctuated_word: word,
-                cleaned_word: normalizeToken(word),
-                start: null,
-                end: null,
-                mfaSource: false,
-            }));
-
-            const matchedWords = advancedWordMatching(transcriptWords, mfaWords, currentMfaIdx);
-            
-            if (matchedWords.length > 0) {
-                let lastMatchIndex = -1;
-                for(let i = 0; i < matchedWords.length; i++) {
-                    if(matchedWords[i].mfaSource) {
-                        const mfaIndex = mfaWords.findIndex(mfaWord => mfaWord.start === matchedWords[i].start && mfaWord.end === matchedWords[i].end && normalizeToken(mfaWord.cleaned_word) === normalizeToken(matchedWords[i].cleaned_word));
-                        if (mfaIndex > lastMatchIndex) {
-                            lastMatchIndex = mfaIndex;
-                        }
-                    }
-                }
-                if (lastMatchIndex !== -1) {
-                    currentMfaIdx = lastMatchIndex + 1;
-                }
-
-                matchedWords[0].isParagraphStart = true;
-                matchedWords[0].speakerLabel = speaker || undefined;
-                processedWords.push(...matchedWords);
-            }
-        }
-    }
-
-    return processedWords.map((word, index) => ({ ...word, number: index + 1 }));
-};
-
 // Advanced word matching algorithm based on the uploaded Python code
 // This provides 99% accuracy for Montreal alignment and potentially 100% for WhisperX
 
@@ -430,71 +379,53 @@ export const alignAndApplyTimestamps = (sourceWords: MatchedWord[], targetWords:
 export const parseMfa = (data: any): MatchedWord[] => {
     let wordList: any[];
 
-    // Case 1: The data is the array itself (user's format)
     if (Array.isArray(data)) {
         wordList = data;
-    } 
-    // Case 2: The data is an object with a 'words' property which is an array
-    else if (data && typeof data === 'object' && Array.isArray(data.words)) {
-        wordList = data.words;
+    } else {
+        throw new Error("Unsupported MFA JSON structure. Expected an array of words.");
     }
-    // Case 3: Handle TextGrid format (e.g., from Prosodylab-Aligner)
-    else if (data && data.tiers && data.tiers.words && Array.isArray(data.tiers.words.entries)) {
-        // TextGrid entries are tuples: [start, end, label]
-        wordList = data.tiers.words.entries.map((entry: [number, number, string]) => ({
-            start: entry[0],
-            end: entry[1],
-            word: entry[2], // Use 'word' as the property name to be consistent
-        }));
-    }
-    // If none of the above, we can't parse it
-    else {
-        throw new Error("Unsupported MFA JSON structure. Expected an array of words, an object with a 'words' property, or a TextGrid JSON format.");
-    }
-    
-    // Now that we have the wordList array, proceed with mapping.
-    // Handle the user's format with number, punctuated_word, cleaned_word, start, end
+
     const mappedWords = wordList.map((item, index) => {
-        // User's format already has punctuated_word and cleaned_word
-        const text = item.punctuated_word || item.word || item.label || '';
-        const cleanedWord = item.cleaned_word || text.toLowerCase().replace(/[.,!?]/g, '');
-        
+        const isParagraphStart = !!item.speakerLabel;
         return {
             number: item.number || (index + 1),
-            punctuated_word: text,
-            cleaned_word: cleanedWord,
-            start: item.start ?? item.begin ?? null,
+            punctuated_word: item.punctuated_word || '',
+            cleaned_word: item.cleaned_word || '',
+            start: item.start ?? null,
             end: item.end ?? null,
-            mfaSource: true, // Mark as MFA source for precision tracking
+            speakerLabel: item.speakerLabel,
+            isParagraphStart,
+            mfaSource: true,
         };
     });
 
-    // No interpolation needed - MFA data already has precise timestamps
     return mappedWords;
 };
 
 export const parseWhisperJson = (data: any): MatchedWord[] => {
-    if (
-        !data?.results?.channels?.[0]?.alternatives?.[0]?.words ||
-        !Array.isArray(data.results.channels[0].alternatives[0].words)
-    ) {
-        throw new Error("Unsupported Whisper JSON structure. Expected results.channels[0].alternatives[0].words to be an array.");
+    let wordList: any[];
+
+    if (Array.isArray(data)) {
+        wordList = data;
+    } else {
+        throw new Error("Unsupported Whisper JSON structure. Expected an array of words.");
     }
 
-    const wordList = data.results.channels[0].alternatives[0].words;
-
-    const mappedWords = wordList.map((item: any, index: number) => {
-        const text = item.punctuated_word || item.word || '';
+    const mappedWords = wordList.map((item, index) => {
+        const isParagraphStart = !!item.speakerLabel;
         return {
-            number: index + 1, // This will be re-numbered later when merged
-            punctuated_word: text,
-            cleaned_word: text.toLowerCase().replace(/[.,!?]/g, ''),
+            number: item.number || (index + 1),
+            punctuated_word: item.punctuated_word || item.word || '',
+            cleaned_word: item.cleaned_word || (item.word || '').toLowerCase().replace(/[.,!?]/g, ''),
             start: item.start ?? null,
             end: item.end ?? null,
+            speakerLabel: item.speakerLabel,
+            isParagraphStart,
+            mfaSource: true,
         };
     });
 
-    return interpolateTimestamps(mappedWords);
+    return mappedWords;
 };
 
 export const parsePastedTranscript = (text: string): MatchedWord[] => {
