@@ -323,6 +323,16 @@ export const TranscriptView = forwardRef<TranscriptViewHandle, TranscriptViewPro
             setEditingParaIndex(pIndex);
         }
     };
+
+    const handleWordClick = (e: React.MouseEvent, pIndex: number, globalWordIndex: number) => {
+        // Left click now enters edit mode instead of playing audio
+        e.preventDefault();
+        e.stopPropagation();
+        if (editingParaIndex !== pIndex) {
+            onEditStart();
+            setEditingParaIndex(pIndex);
+        }
+    };
     
     const handleWordContextMenu = (e: React.MouseEvent, word: MatchedWord) => {
         e.preventDefault();
@@ -419,7 +429,7 @@ export const TranscriptView = forwardRef<TranscriptViewHandle, TranscriptViewPro
                                                 <span
                                                     ref={el => { if (el) wordRefs.current[globalWordIndex] = el; }}
                                                     onContextMenu={(e) => handleWordContextMenu(e, word)}
-                                                    onClick={() => onSeekToTime(word.start)}
+                                                    onClick={(e) => handleWordClick(e, pIndex, globalWordIndex)}
                                                     className={`
                                                         cursor-pointer hover:bg-gray-700 rounded
                                                         ${isActiveMatch ? 'bg-orange-500 text-white' : ''}

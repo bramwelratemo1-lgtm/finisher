@@ -202,12 +202,11 @@ const VirtualTranscriptView = forwardRef<VirtualTranscriptViewHandle, VirtualTra
         }
     }, [handleBlur]);
 
-    // Handle word click
+    // Handle word click - removed play functionality, now just used for context menu
     const handleWordClick = useCallback((word: MatchedWord) => {
-        if (word.start !== null) {
-            onSeekToTime(word.start);
-        }
-    }, [onSeekToTime]);
+        // Word click no longer plays audio - only used for context menu navigation
+        // Left click now switches to edit mode instead
+    }, []);
 
     // Handle word context menu
     const handleWordContextMenu = useCallback((e: React.MouseEvent, word: MatchedWord) => {
@@ -440,7 +439,10 @@ const VirtualTranscriptView = forwardRef<VirtualTranscriptViewHandle, VirtualTra
                         ${isActiveMatch ? 'bg-orange-500 text-white' : ''}
                         ${!isActiveMatch && isMatch ? 'bg-yellow-500/50' : ''}
                     `}
-                    onClick={() => handleWordClick(word)}
+                    onClick={(e) => {
+                        e.preventDefault();
+                        handleFocus();
+                    }}
                     onContextMenu={(e) => handleWordContextMenu(e, word)}
                     onMouseEnter={() => setHoveredWordIndex(index)}
                     onMouseLeave={() => setHoveredWordIndex(null)}
@@ -577,7 +579,9 @@ const VirtualTranscriptView = forwardRef<VirtualTranscriptViewHandle, VirtualTra
                     <ul className="space-y-1">
                         <li
                             onClick={() => {
-                                handleWordClick(contextMenu.word);
+                                if (contextMenu.word.start !== null) {
+                                    onSeekToTime(contextMenu.word.start);
+                                }
                                 setContextMenu(null);
                             }}
                             className="px-3 py-1 hover:bg-gray-600 rounded cursor-pointer"
