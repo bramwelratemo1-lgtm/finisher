@@ -3,7 +3,8 @@ import type { MatchedWord, DiarizationSegment, SpeakerMap, TranscriptVersion, Da
 import { 
     parsePyannote, parseMfa, interpolateTimestamps, parsePastedTranscript, 
     parseWhisperJson, alignAndApplyTimestamps, advancedWordMatching,
-    parseFormattedTranscript, stripSpeakerTags, reconstructSpeakerTags, SpeakerTagInfo 
+    parseFormattedTranscript, stripSpeakerTags, reconstructSpeakerTags, SpeakerTagInfo,
+    processFormattedTranscriptWithMfa, extractSpeakerAndText
 } from '../services/processingService';
 
 const DataContext = createContext<DataContextType | null>(null);

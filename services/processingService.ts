@@ -1,6 +1,211 @@
 import type { PyannoteDiarization, MatchedWord, DiarizationSegment, SpeakerMap, TranscriptVersion } from '../types';
 import { SPEAKER_COLORS } from '../constants';
 
+// ===== PARAGRAPH PROCESSOR LOGIC =====
+// Based on paragraph_processor_v4.py for precision MFA timestamp preservation
+
+/**
+ * Extract speaker and text from a formatted paragraph line.
+ * Expected formats: 
+ * - "0:00:07.8 S1: Hello world"
+ * - "S1: Hello world" 
+ * - "SPEAKER_01: Hello world"
+ */
+export const extractSpeakerAndText = (paragraph: string): { speaker: string | null; text: string | null } => {
+    const trimmed = paragraph.trim();
+    if (!trimmed) return { speaker: null, text: null };
+    
+    // Pattern: Optional timestamp + Speaker + Colon + Text
+    // e.g., "0:00:07.8 S1: Okay." or "S1: Okay."
+    const pattern = /^(?:(?:\d+:)?\d{2}:\d{2}\.\d\s)?([^:]+):\s*(.+)/;
+    const match = trimmed.match(pattern);
+    
+    if (!match) return { speaker: null, text: null };
+    
+    const speakerRaw = match[1].trim();
+    const text = match[2].trim();
+    
+    // Normalize speaker labels
+    let speaker: string;
+    if (speakerRaw.startsWith('SPEAKER_')) {
+        // Convert SPEAKER_01 to S1, SPEAKER_02 to S2, etc.
+        try {
+            const num = parseInt(speakerRaw.split('_')[1]);
+            speaker = `S${num}`;
+        } catch {
+            speaker = speakerRaw;
+        }
+    } else if (speakerRaw.startsWith('S') && /^\d+$/.test(speakerRaw.slice(1))) {
+        // Already in S# format
+        speaker = speakerRaw;
+    } else {
+        // Named speaker, keep as is
+        speaker = speakerRaw;
+    }
+    
+    return { speaker, text };
+};
+
+/**
+ * Match paragraph words to MFA JSON words using lookahead window
+ * Returns timing information for the paragraph based on matched words
+ */
+export const matchParagraphWords = (
+    paragraphText: string,
+    mfaWords: MatchedWord[],
+    startIdx: number = 0,
+    lookahead: number = 6
+): {
+    firstStartTime: number | null;
+    lastEndTime: number | null;
+    nextStartIdx: number;
+    matchedCount: number;
+} => {
+    const paragraphTokens = paragraphText.match(/\S+/g) || [];
+    
+    if (paragraphTokens.length === 0) {
+        return {
+            firstStartTime: null,
+            lastEndTime: null,
+            nextStartIdx: startIdx,
+            matchedCount: 0
+        };
+    }
+    
+    let firstStartTime: number | null = null;
+    let lastEndTime: number | null = null;
+    let matchedCount = 0;
+    let localMfaIdx = startIdx;
+    
+    for (const token of paragraphTokens) {
+        const normalizedToken = normalizeToken(token);
+        
+        let foundIndex: number | null = null;
+        const windowEnd = Math.min(localMfaIdx + lookahead, mfaWords.length);
+        
+        for (let j = localMfaIdx; j < windowEnd; j++) {
+            const mfaWord = mfaWords[j];
+            const mfaCleaned = mfaWord.cleaned_word || '';
+            const normalizedMfa = normalizeToken(mfaCleaned);
+            
+            if (tokensCloseMatch(normalizedToken, normalizedMfa)) {
+                foundIndex = j;
+                break;
+            }
+        }
+        
+        if (foundIndex !== null) {
+            const matchedWord = mfaWords[foundIndex];
+            if (matchedWord.start !== null) {
+                if (firstStartTime === null) {
+                    firstStartTime = matchedWord.start;
+                }
+                lastEndTime = matchedWord.end;
+                matchedCount++;
+            }
+            
+            // Advance the local search index
+            localMfaIdx = foundIndex + 1;
+        }
+        // If not found, don't advance index (helps with transcript gaps)
+    }
+    
+    return {
+        firstStartTime,
+        lastEndTime,
+        nextStartIdx: localMfaIdx,
+        matchedCount
+    };
+};
+
+/**
+ * Process formatted transcript with MFA JSON to create timestamped transcript
+ * This is the core paragraph processor logic
+ */
+export const processFormattedTranscriptWithMfa = (
+    formattedText: string,
+    mfaWords: MatchedWord[]
+): MatchedWord[] => {
+    const lines = formattedText.split('\n').filter(line => line.trim());
+    const processedWords: MatchedWord[] = [];
+    let wordNumber = 1;
+    let currentMfaIdx = 0;
+    
+    for (const line of lines) {
+        const { speaker, text } = extractSpeakerAndText(line);
+        
+        if (!speaker || !text) {
+            // Handle lines without speaker tags (treat as plain text)
+            const words = text ? text.match(/\S+/g) || [] : [];
+            for (let i = 0; i < words.length; i++) {
+                const word = words[i];
+                processedWords.push({
+                    number: wordNumber++,
+                    punctuated_word: word,
+                    cleaned_word: word.toLowerCase().replace(/[.,!?]/g, ''),
+                    start: null,
+                    end: null,
+                    speakerLabel: undefined,
+                    isParagraphStart: i === 0,
+                    mfaSource: false
+                });
+            }
+            continue;
+        }
+        
+        // Match paragraph text with MFA words
+        const { firstStartTime, lastEndTime, nextStartIdx, matchedCount } = matchParagraphWords(
+            text,
+            mfaWords,
+            currentMfaIdx
+        );
+        
+        currentMfaIdx = nextStartIdx;
+        
+        // Process words in this paragraph
+        const words = text.match(/\S+/g) || [];
+        const wordsInParagraph: MatchedWord[] = [];
+        
+        // Create word objects with MFA timing if available
+        for (let i = 0; i < words.length; i++) {
+            const word = words[i];
+            const normalizedWord = normalizeToken(word);
+            
+            // Try to find matching MFA word for precise timing
+            let mfaMatch: MatchedWord | null = null;
+            const lookahead = 6; // Default lookahead window
+            const searchStart = Math.max(0, currentMfaIdx - words.length - lookahead);
+            const searchEnd = Math.min(mfaWords.length, currentMfaIdx + lookahead);
+            
+            for (let j = searchStart; j < searchEnd; j++) {
+                const mfaWord = mfaWords[j];
+                const mfaNormalized = normalizeToken(mfaWord.cleaned_word || '');
+                if (tokensCloseMatch(normalizedWord, mfaNormalized)) {
+                    mfaMatch = mfaWord;
+                    break;
+                }
+            }
+            
+            const wordObj: MatchedWord = {
+                number: wordNumber++,
+                punctuated_word: word,
+                cleaned_word: word.toLowerCase().replace(/[.,!?]/g, ''),
+                start: mfaMatch?.start || null,
+                end: mfaMatch?.end || null,
+                speakerLabel: i === 0 ? speaker : undefined,
+                isParagraphStart: i === 0,
+                mfaSource: mfaMatch !== null // Track if timestamp came from MFA
+            };
+            
+            wordsInParagraph.push(wordObj);
+        }
+        
+        processedWords.push(...wordsInParagraph);
+    }
+    
+    return processedWords;
+};
+
 // Advanced word matching algorithm based on the uploaded Python code
 // This provides 99% accuracy for Montreal alignment and potentially 100% for WhisperX
 
@@ -318,6 +523,7 @@ export const parseMfa = (data: any): MatchedWord[] => {
             cleaned_word: cleanedWord,
             start: item.start ?? item.begin ?? null,
             end: item.end ?? null,
+            mfaSource: true, // Mark as MFA source for precision tracking
         };
     });
 
