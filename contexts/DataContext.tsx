@@ -53,7 +53,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     useEffect(() => {
         const words = transcriptVersions[currentVersionIndex]?.words || [];
         setTranscript(words);
-    }, [currentVersionIndex, transcriptVersions]);
+    }, [currentVersionIndex, transcriptVersions, currentTranscript]);
 
     useEffect(() => {
         const stateToSave = {
@@ -83,10 +83,13 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
             try {
                 const content = JSON.parse(e.target?.result as string);
                 const words = parseMfa(content);
-                setTranscript(words);
-                const newVersion: TranscriptVersion = { name: `MFA Upload (v${transcriptVersions.length + 1})`, words };
-                setTranscriptVersions(prev => [...prev.slice(0, currentVersionIndex + 1), newVersion]);
-                setCurrentVersionIndex(prev => prev + 1);
+                if (transcriptVersions.length === 0) {
+                    const newVersion: TranscriptVersion = { name: `MFA Upload (v1)`, words };
+                    setTranscriptVersions([newVersion]);
+                    setCurrentVersionIndex(0);
+                } else {
+                    setTranscript(words);
+                }
                 setMfaApplied(true);
             } catch (error) { alert("Invalid MFA JSON file."); }
         };
@@ -99,10 +102,13 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
             try {
                 const content = JSON.parse(e.target?.result as string);
                 const words = parseWhisperJson(content);
-                setTranscript(words);
-                const newVersion: TranscriptVersion = { name: `Whisper Upload (v${transcriptVersions.length + 1})`, words };
-                setTranscriptVersions(prev => [...prev.slice(0, currentVersionIndex + 1), newVersion]);
-                setCurrentVersionIndex(prev => prev + 1);
+                if (transcriptVersions.length === 0) {
+                    const newVersion: TranscriptVersion = { name: `Whisper Upload (v1)`, words };
+                    setTranscriptVersions([newVersion]);
+                    setCurrentVersionIndex(0);
+                } else {
+                    setTranscript(words);
+                }
                 setWhisperApplied(true);
             } catch (error) { alert(`Invalid Whisper JSON file: ${error.message}`); }
         };
