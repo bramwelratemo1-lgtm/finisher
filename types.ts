@@ -28,6 +28,7 @@ export interface MatchedWord {
     end: number | null;
     speakerLabel?: string; // e.g., "S1", "S?"
     isParagraphStart?: boolean; // True if this word starts a new paragraph
+    mfaSource?: boolean; // NEW: Tracks if timestamp came from MFA (precision indicator)
 }
 
 export interface TranscriptVersion {
