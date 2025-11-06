@@ -510,7 +510,8 @@ export const Editor: React.FC = () => {
                            />
                        </div>
                        <div className="w-px h-4 bg-gray-700 mx-1"></div>
-                       {/* Font Configuration */}
+
+                       {/* Simple System Font Configuration */}
                        <div className="relative">
                            <button 
                                ref={fontButtonRef}
@@ -525,13 +526,9 @@ export const Editor: React.FC = () => {
                                    <div className="text-gray-300 font-semibold mb-2">Font Family</div>
                                    <div className="space-y-1">
                                        {[
-                                           { value: 'font-mono', label: 'Monospace', family: 'ui-monospace, SFMono-Regular, "SF Mono", monospace' },
-                                           { value: 'font-sans', label: 'Inter', family: 'Inter, ui-sans-serif, system-ui, sans-serif' },
-                                           { value: 'font-["Open_Sans"]', label: 'Open Sans', family: '"Open Sans", ui-sans-serif, system-ui, sans-serif' },
-                                           { value: 'font-["Source_Sans_Pro"]', label: 'Source Sans Pro', family: '"Source Sans Pro", ui-sans-serif, system-ui, sans-serif' },
-                                           { value: 'font-["Lato"]', label: 'Lato', family: 'Lato, ui-sans-serif, system-ui, sans-serif' },
-                                           { value: 'font-["Roboto"]', label: 'Roboto', family: 'Roboto, ui-sans-serif, system-ui, sans-serif' },
-                                           { value: 'font-["JetBrains_Mono"]', label: 'JetBrains Mono', family: '"JetBrains Mono", ui-monospace, SFMono-Regular, monospace' }
+                                           { value: 'font-mono', label: 'Monospace' },
+                                           { value: 'font-sans', label: 'Inter/System Sans' },
+                                           { value: 'font-serif', label: 'Times/System Serif' }
                                        ].map((font) => (
                                            <button
                                                key={font.value}
@@ -541,8 +538,7 @@ export const Editor: React.FC = () => {
                                                }}
                                                className={`w-full text-left px-3 py-2 rounded hover:bg-gray-600 transition-colors ${
                                                    selectedFont === font.value ? 'bg-brand-blue text-white' : 'text-gray-300'
-                                               }`}
-                                               style={{ fontFamily: font.family }}
+                                               } ${font.value}`}
                                            >
                                                {font.label}
                                            </button>
