@@ -83,6 +83,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
             try {
                 const content = JSON.parse(e.target?.result as string);
                 const words = parseMfa(content);
+                setTranscript(words);
                 const newVersion: TranscriptVersion = { name: `MFA Upload (v${transcriptVersions.length + 1})`, words };
                 setTranscriptVersions(prev => [...prev.slice(0, currentVersionIndex + 1), newVersion]);
                 setCurrentVersionIndex(prev => prev + 1);
@@ -98,6 +99,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
             try {
                 const content = JSON.parse(e.target?.result as string);
                 const words = parseWhisperJson(content);
+                setTranscript(words);
                 const newVersion: TranscriptVersion = { name: `Whisper Upload (v${transcriptVersions.length + 1})`, words };
                 setTranscriptVersions(prev => [...prev.slice(0, currentVersionIndex + 1), newVersion]);
                 setCurrentVersionIndex(prev => prev + 1);
