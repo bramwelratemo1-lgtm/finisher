@@ -252,7 +252,7 @@ export const TranscriptView = forwardRef<TranscriptViewHandle, TranscriptViewPro
                 const cursorPos = textarea.selectionStart;
                 const timestamp = formatSimpleTimestamp(time);
                 const segment = `${timestamp} ${speakerLabel}: `;
-                const newText = transcriptText.slice(0, cursorPos) + segment + transcriptText.slice(cursorPos);
+                const newText = state.transcriptText.slice(0, cursorPos) + segment + state.transcriptText.slice(cursorPos);
                 handleTextChange(newText);
                 
                 // Move cursor after inserted segment
@@ -264,7 +264,7 @@ export const TranscriptView = forwardRef<TranscriptViewHandle, TranscriptViewPro
         },
         scrollToWord,
         seekToTime
-    }), [handleTextChange, transcriptText, scrollToWord, seekToTime]);
+    }), [handleTextChange, state.transcriptText, scrollToWord, seekToTime]);
 
     // Handle paste
     const handlePaste = useCallback((e: React.ClipboardEvent) => {
@@ -274,7 +274,7 @@ export const TranscriptView = forwardRef<TranscriptViewHandle, TranscriptViewPro
         if (textareaRef.current) {
             const textarea = textareaRef.current;
             const { selectionStart, selectionEnd } = textarea;
-            const newText = transcriptText.slice(0, selectionStart) + pastedText + transcriptText.slice(selectionEnd);
+            const newText = state.transcriptText.slice(0, selectionStart) + pastedText + state.transcriptText.slice(selectionEnd);
             handleTextChange(newText);
             
             // Move cursor to end of pasted text
@@ -284,7 +284,7 @@ export const TranscriptView = forwardRef<TranscriptViewHandle, TranscriptViewPro
                 textarea.focus();
             }, 0);
         }
-    }, [transcriptText, handleTextChange]);
+    }, [state.transcriptText, handleTextChange]);
 
     if (words.length === 0) {
         return (
@@ -308,7 +308,7 @@ export const TranscriptView = forwardRef<TranscriptViewHandle, TranscriptViewPro
             {/* GPT-4o Style Textarea - Clean and Simple */}
             <textarea
                 ref={textareaRef}
-                value={transcriptText}
+                value={state.transcriptText}
                 onChange={(e) => handleTextChange(e.target.value)}
                 onContextMenu={handleContextMenu}
                 onPaste={handlePaste}
@@ -341,7 +341,6 @@ export const TranscriptView = forwardRef<TranscriptViewHandle, TranscriptViewPro
                                     onSeekToTime(contextMenu.word.start);
                                 }
                                 setContextMenu(null);
-                                setHighlightedWordIndex(null);
                             }}
                             className="px-3 py-1 hover:bg-gray-600 rounded cursor-pointer"
                         >
@@ -351,7 +350,6 @@ export const TranscriptView = forwardRef<TranscriptViewHandle, TranscriptViewPro
                             onClick={() => {
                                 onFindWord(contextMenu.word.punctuated_word);
                                 setContextMenu(null);
-                                setHighlightedWordIndex(null);
                             }}
                             className="px-3 py-1 hover:bg-gray-600 rounded cursor-pointer"
                         >

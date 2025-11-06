@@ -44,6 +44,11 @@ export const Editor: React.FC = () => {
     // Line highlighting state
     const [isHighlightConfigOpen, setIsHighlightConfigOpen] = useState(false);
     const highlightButtonRef = useRef<HTMLButtonElement>(null);
+    
+    // Font configuration state
+    const [selectedFont, setSelectedFont] = useState('font-mono');
+    const [isFontConfigOpen, setIsFontConfigOpen] = useState(false);
+    const fontButtonRef = useRef<HTMLButtonElement>(null);
 
     const transcriptViewRef = useRef<TranscriptViewHandle>(null);
 
@@ -371,6 +376,21 @@ export const Editor: React.FC = () => {
         return () => window.removeEventListener('keydown', handleKeyDown);
     }, [shortcuts, handlePlayPause, audioRef, undo, redo, handleInterpolateEdits]);
 
+    // Close font dropdown when clicking outside
+    useEffect(() => {
+        const handleClickOutside = (event: MouseEvent) => {
+            if (fontButtonRef.current && !fontButtonRef.current.contains(event.target as Node)) {
+                setIsFontConfigOpen(false);
+            }
+        };
+        
+        if (isFontConfigOpen) {
+            document.addEventListener('mousedown', handleClickOutside);
+        }
+        
+        return () => document.removeEventListener('mousedown', handleClickOutside);
+    }, [isFontConfigOpen]);
+
     const VolumeIcon = () => {
         if (volume === 0) return <VolumeXIcon className="w-5 h-5 text-gray-400" />;
         if (volume < 0.5) return <Volume1Icon className="w-5 h-5 text-gray-400" />;
@@ -488,6 +508,48 @@ export const Editor: React.FC = () => {
                                onClose={() => setIsHighlightConfigOpen(false)}
                                anchorRef={highlightButtonRef}
                            />
+                       </div>
+                       <div className="w-px h-4 bg-gray-700 mx-1"></div>
+                       {/* Font Configuration */}
+                       <div className=\"relative\">
+                           <button 
+                               ref={fontButtonRef}
+                               onClick={() => setIsFontConfigOpen(!isFontConfigOpen)} 
+                               className=\"p-1 rounded-full hover:bg-gray-700 transition-colors\" 
+                               title=\"Configure Font\"
+                           >
+                               <span className={`text-xs font-bold ${isFontConfigOpen ? 'text-brand-blue' : 'text-gray-400'}`}>Aa</span>
+                           </button>
+                           {isFontConfigOpen && (
+                               <div className=\"absolute top-full mt-2 right-0 bg-gray-700 border border-gray-600 rounded-md shadow-lg p-2 text-sm min-w-48 z-50\">
+                                   <div className=\"text-gray-300 font-semibold mb-2\">Font Family</div>
+                                   <div className=\"space-y-1\">
+                                       {[
+                                           { value: 'font-mono', label: 'Monospace', family: 'ui-monospace, SFMono-Regular, \"SF Mono\", monospace' },
+                                           { value: 'font-sans', label: 'Inter', family: 'Inter, ui-sans-serif, system-ui, sans-serif' },
+                                           { value: 'font-[\"Open_Sans\"]', label: 'Open Sans', family: '\"Open Sans\", ui-sans-serif, system-ui, sans-serif' },
+                                           { value: 'font-[\"Source_Sans_Pro\"]', label: 'Source Sans Pro', family: '\"Source Sans Pro\", ui-sans-serif, system-ui, sans-serif' },
+                                           { value: 'font-[\"Lato\"]', label: 'Lato', family: 'Lato, ui-sans-serif, system-ui, sans-serif' },
+                                           { value: 'font-[\"Roboto\"]', label: 'Roboto', family: 'Roboto, ui-sans-serif, system-ui, sans-serif' },
+                                           { value: 'font-[\"JetBrains_Mono\"]', label: 'JetBrains Mono', family: '\"JetBrains Mono\", ui-monospace, SFMono-Regular, monospace' }
+                                       ].map((font) => (
+                                           <button
+                                               key={font.value}
+                                               onClick={() => {
+                                                   setSelectedFont(font.value);
+                                                   setIsFontConfigOpen(false);
+                                               }}
+                                               className={`w-full text-left px-3 py-2 rounded hover:bg-gray-600 transition-colors ${
+                                                   selectedFont === font.value ? 'bg-brand-blue text-white' : 'text-gray-300'
+                                               }`}
+                                               style={{ fontFamily: font.family }}
+                                           >
+                                               {font.label}
+                                           </button>
+                                       ))}
+                                   </div>
+                               </div>
+                           )}
                        </div>
 
                     </div>
@@ -621,7 +683,7 @@ export const Editor: React.FC = () => {
                         activeMatchIndex={activeMatchGlobalIndex}
                         onFindWord={handleFindRequest}
                         onEditStart={handleEditStart}
-                        fontFamily="font-mono"
+                        fontFamily={selectedFont}
                     />
                 </div>
             </div>
