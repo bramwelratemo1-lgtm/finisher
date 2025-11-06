@@ -1,6 +1,34 @@
 import React, { useState, useEffect, useMemo, useRef, useCallback, forwardRef, useImperativeHandle } from 'react';
-import type { MatchedWord } from '../types';
-import { interpolateTimestamps, parsePastedTranscript } from '../services/processingService';
+import type { MatchedWord, TranscriptParagraph } from '../types';
+import { processFormattedTranscriptWithMfa, interpolateTimestamps } from '../services/processingService';
+
+// FIX: Add formatTimestamp and parseTimestamp functions as they are missing.
+const formatTimestamp = (time: number): string => {
+    const hours = Math.floor(time / 3600);
+    const minutes = Math.floor((time % 3600) / 60);
+    const seconds = Math.floor(time % 60);
+    const milliseconds = Math.round((time - Math.floor(time)) * 1000);
+
+    if (hours > 0) {
+        return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}.${String(milliseconds).padStart(3, '0')}`;
+    }
+    return `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}.${String(milliseconds).padStart(3, '0')}`;
+};
+
+const parseTimestamp = (timestamp: string): number => {
+    const parts = timestamp.split(':');
+    let seconds = 0;
+    if (parts.length === 3) {
+        seconds += parseInt(parts[0], 10) * 3600;
+        seconds += parseInt(parts[1], 10) * 60;
+        seconds += parseFloat(parts[2]);
+    } else if (parts.length === 2) {
+        seconds += parseInt(parts[0], 10) * 60;
+        seconds += parseFloat(parts[1]);
+    }
+    return seconds;
+};
+
 
 interface TranscriptViewProps {
     words: MatchedWord[];
@@ -224,67 +252,16 @@ export const TranscriptView = forwardRef<TranscriptViewHandle, TranscriptViewPro
         const paragraph = paragraphs[pIndex];
         if (!paragraph) return;
 
-        const lines = newText.split('\n');
-        const allNewWords: MatchedWord[] = [];
-        const originalFirstWord = paragraph.words[0];
-        
-        lines.forEach((line, lineIndex) => {
-            const trimmedLine = line.trim();
-            if (trimmedLine === '' && lines.length > 1) {
-                 allNewWords.push({ 
-                    number: 0, punctuated_word: '', cleaned_word: '', start: null, end: null,
-                    isParagraphStart: true, speakerLabel: undefined
-                 });
-                return;
-            }
+        const newWords = processFormattedTranscriptWithMfa(newText, words);
+        const interpolatedWords = interpolateTimestamps(newWords);
 
-            // Enhanced regex to match various speaker tag formats like the VirtualTranscriptEditor
-            // Supports: "S1:", "S?:", "Speaker 1:", "Name:", etc.
-            const match = trimmedLine.match(/^(?:((?:\d{2}:){1,2}\d{2}[.,]\d+)\s+)?(?:([^:]+):\s+)?(.*)$/);
-            const newTimestampStr = match?.[1] || null;
-            const speakerTag = match?.[2] || null;
-            
-            // Check if the speaker tag looks like an actual speaker (not just random text with a colon)
-            const isSpeakerTag = speakerTag ? /^(S\d+|S\?|Speaker\s*\d+|[A-Z][a-zA-Z\s]*?)$/.test(speakerTag.trim()) : false;
-            const explicitSpeaker = isSpeakerTag ? speakerTag.trim() : null;
-            const newWordsText = match?.[3] ?? trimmedLine;
-            const newTimestamp = newTimestampStr ? parseTimestamp(newTimestampStr) : null;
-
-            const newWordsForLine: MatchedWord[] = newWordsText.split(/\s+/).filter(Boolean).map(word => ({
-                number: 0, punctuated_word: word,
-                cleaned_word: word.toLowerCase().replace(/[.,!?]/g, ''),
-                start: null, end: null,
-            }));
-            
-            if (newWordsForLine.length === 0 && lineIndex > 0) {
-                 allNewWords.push({ 
-                    number: 0, punctuated_word: '', cleaned_word: '', start: null, end: null,
-                    isParagraphStart: true, speakerLabel: explicitSpeaker ?? undefined
-                 });
-                 return;
-            }
-
-            if (newWordsForLine.length > 0) {
-                if (lineIndex === 0) {
-                    newWordsForLine[0].isParagraphStart = originalFirstWord?.isParagraphStart;
-                    newWordsForLine[0].speakerLabel = explicitSpeaker ?? originalFirstWord?.speakerLabel;
-                    newWordsForLine[0].start = newTimestamp ?? originalFirstWord?.start;
-                } else {
-                    newWordsForLine[0].isParagraphStart = true;
-                    newWordsForLine[0].speakerLabel = explicitSpeaker ?? undefined;
-                    newWordsForLine[0].start = newTimestamp;
-                }
-                allNewWords.push(...newWordsForLine);
-            }
-        });
-        
         const newFullTranscript = [
             ...words.slice(0, paragraph.startingWordIndex),
-            ...allNewWords.filter(w => w.punctuated_word !== '' || w.isParagraphStart),
+            ...interpolatedWords,
             ...words.slice(paragraph.endingWordIndex + 1)
         ];
-        
-        onSaveTranscript(newFullTranscript.map((w, i) => ({...w, number: i + 1})));
+
+        onSaveTranscript(newFullTranscript.map((w, i) => ({ ...w, number: i + 1 })));
     }, [paragraphs, words, onSaveTranscript]);
     
     useImperativeHandle(ref, () => ({
