@@ -141,28 +141,41 @@ export const TranscriptView = forwardRef<TranscriptViewHandle, TranscriptViewPro
         setWordMappings(generateWordMappings(newText, words));
     }, [words, generateTranscriptText, generateWordMappings]);
 
-    // Handle text changes (GPT-4o style) with cursor preservation
+    // Handle text changes (GPT-4o style) with cursor preservation and MFA timestamp preservation
     const handleTextChange = useCallback((newText: string) => {
         // Store cursor position before any updates
         const currentCursorPos = textareaRef.current?.selectionStart || 0;
         
         setState(prev => ({ ...prev, transcriptText: newText }));
         
-        // Parse text back to words and apply interpolation
-        const newWords = parsePastedTranscript(newText);
-        const interpolatedWords = interpolateTimestamps(newWords);
+        // CRITICAL: Only re-parse and interpolate for significant changes (not normal editing)
+        // For normal editing (typing, Enter key, backspace), just update the text display
+        // The precise MFA timestamps should be preserved in the original words data
         
-        // Defer the parent update to prevent immediate re-render
-        setTimeout(() => {
-            onSaveTranscript(interpolatedWords);
+        // Simple heuristic: only re-process if text length changed significantly (>10%)
+        const originalLength = state.transcriptText.length;
+        const newLength = newText.length;
+        const lengthChangeRatio = Math.abs(newLength - originalLength) / Math.max(originalLength, 1);
+        
+        // Only re-parse if it's a major change (like pasting new content), not minor edits
+        if (lengthChangeRatio > 0.1) {
+            // Parse text back to words and apply interpolation for major changes
+            const newWords = parsePastedTranscript(newText);
+            const interpolatedWords = interpolateTimestamps(newWords);
             
-            // Restore cursor position after the update
-            if (textareaRef.current) {
-                textareaRef.current.selectionStart = currentCursorPos;
-                textareaRef.current.selectionEnd = currentCursorPos;
-            }
-        }, 0);
-    }, [onSaveTranscript]);
+            // Defer the parent update to prevent immediate re-render
+            setTimeout(() => {
+                onSaveTranscript(interpolatedWords);
+                
+                // Restore cursor position after the update
+                if (textareaRef.current) {
+                    textareaRef.current.selectionStart = currentCursorPos;
+                    textareaRef.current.selectionEnd = currentCursorPos;
+                }
+            }, 0);
+        }
+        // For minor changes (typing, Enter, backspace), don't destroy MFA timestamps
+    }, [onSaveTranscript, state.transcriptText]);
 
     // Find word at cursor position
     const findWordAtPosition = useCallback((cursorPos: number): MatchedWord | null => {
