@@ -106,7 +106,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
         const alignedWords = advancedWordMatching(currentTranscript, data);
         
         // If we have original speaker tags, reconstruct them after alignment
-        let finalTranscript = interpolateTimestamps(alignedWords);
+        let finalTranscript = alignedWords; // Don't interpolate MFA/Whisper data - they already have precise timestamps!
         if (originalSpeakerTags.length > 0) {
             finalTranscript = reconstructSpeakerTags(finalTranscript, originalSpeakerTags);
         }
