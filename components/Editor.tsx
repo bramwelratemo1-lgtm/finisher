@@ -30,7 +30,7 @@ export const Editor: React.FC = () => {
     const [currentTime, setCurrentTime] = useState(0);
     const [duration, setDuration] = useState(0);
     const [lastVolume, setLastVolume] = useState(1);
-    const [timeToScrollTo, setTimeToScrollTo] = useState<number | null>(null);
+    // Removed timeToScrollTo - now using seekToTime directly
 
     // Find and Replace State
     const [isFindBarOpen, setIsFindBarOpen] = useState(false);
@@ -44,6 +44,11 @@ export const Editor: React.FC = () => {
     // Line highlighting state
     const [isHighlightConfigOpen, setIsHighlightConfigOpen] = useState(false);
     const highlightButtonRef = useRef<HTMLButtonElement>(null);
+    
+    // Font configuration state
+    const [selectedFont, setSelectedFont] = useState('font-mono');
+    const [isFontConfigOpen, setIsFontConfigOpen] = useState(false);
+    const fontButtonRef = useRef<HTMLButtonElement>(null);
 
     const transcriptViewRef = useRef<TranscriptViewHandle>(null);
 
@@ -122,25 +127,7 @@ export const Editor: React.FC = () => {
         };
     }, [audioRef, audioSrc, lastPlaybackTime, setLastPlaybackTime]);
     
-    // Effect to handle scrolling the transcript view when a seek happens from the timeline.
-    useEffect(() => {
-        if (timeToScrollTo === null) return;
-        
-        let targetWordIndex = -1;
-        for (let i = 0; i < currentTranscript.length; i++) {
-            if (currentTranscript[i].start !== null && currentTranscript[i].start! <= timeToScrollTo) {
-                targetWordIndex = i;
-            } else if (currentTranscript[i].start !== null && currentTranscript[i].start! > timeToScrollTo) {
-                break;
-            }
-        }
-    
-        if (targetWordIndex !== -1) {
-            transcriptViewRef.current?.scrollToWord(targetWordIndex);
-        }
-    
-        setTimeToScrollTo(null); // Reset after scrolling
-    }, [timeToScrollTo, currentTranscript]);
+    // Removed old timeToScrollTo effect - now using seekToTime directly
 
 
     useEffect(() => {
@@ -255,7 +242,8 @@ export const Editor: React.FC = () => {
                 });
             }
         }
-        setTimeToScrollTo(time); // Trigger the scroll effect
+        // Scroll transcript to the word at this time using new seekToTime method
+        transcriptViewRef.current?.seekToTime(time);
     };
     
     const handleAddTimestamp = () => {
@@ -372,7 +360,7 @@ export const Editor: React.FC = () => {
                 [shortcuts.playPause.toLowerCase()]: handlePlayPause,
                 [shortcuts.rewind.toLowerCase()]: () => { if (audioRef.current) audioRef.current.currentTime = Math.max(0, audioRef.current.currentTime - 3); },
                 [shortcuts.forward.toLowerCase()]: () => { if (audioRef.current) audioRef.current.currentTime = Math.min(audioRef.current.duration || Infinity, audioRef.current.currentTime + 3); },
-                [shortcuts.toggleLineNumbers.toLowerCase()]: () => setIsLineNumbersVisible(v => !v),
+                // Removed line numbers functionality
                 [shortcuts.undo.toLowerCase()]: undo,
                 [shortcuts.redo.toLowerCase()]: redo,
                 [shortcuts.interpolateEdits.toLowerCase()]: handleInterpolateEdits,
@@ -386,7 +374,22 @@ export const Editor: React.FC = () => {
 
         window.addEventListener('keydown', handleKeyDown);
         return () => window.removeEventListener('keydown', handleKeyDown);
-    }, [shortcuts, handlePlayPause, audioRef, setIsLineNumbersVisible, undo, redo, handleInterpolateEdits]);
+    }, [shortcuts, handlePlayPause, audioRef, undo, redo, handleInterpolateEdits]);
+
+    // Close font dropdown when clicking outside
+    useEffect(() => {
+        const handleClickOutside = (event: MouseEvent) => {
+            if (fontButtonRef.current && !fontButtonRef.current.contains(event.target as Node)) {
+                setIsFontConfigOpen(false);
+            }
+        };
+        
+        if (isFontConfigOpen) {
+            document.addEventListener('mousedown', handleClickOutside);
+        }
+        
+        return () => document.removeEventListener('mousedown', handleClickOutside);
+    }, [isFontConfigOpen]);
 
     const VolumeIcon = () => {
         if (volume === 0) return <VolumeXIcon className="w-5 h-5 text-gray-400" />;
@@ -490,9 +493,7 @@ export const Editor: React.FC = () => {
                             <ZoomInIcon className="w-5 h-5 text-gray-400" />
                         </button>
                         <div className="w-px h-4 bg-gray-700 mx-1"></div>
-                        <button onClick={() => setIsLineNumbersVisible(!isLineNumbersVisible)} className="p-1 rounded-full hover:bg-gray-700 transition-colors" title={isLineNumbersVisible ? "Hide Line Numbers" : "Show Line Numbers"}>
-                           <ListIcon className={`w-5 h-5 ${isLineNumbersVisible ? 'text-brand-blue' : 'text-gray-400'}`}/>
-                       </button>
+                        {/* Removed line numbers button - using GPT-4o style interface */}
                        <div className="relative">
                            <button 
                                ref={highlightButtonRef}
@@ -507,6 +508,48 @@ export const Editor: React.FC = () => {
                                onClose={() => setIsHighlightConfigOpen(false)}
                                anchorRef={highlightButtonRef}
                            />
+                       </div>
+                       <div className="w-px h-4 bg-gray-700 mx-1"></div>
+                       {/* Font Configuration */}
+                       <div className="relative">
+                           <button 
+                               ref={fontButtonRef}
+                               onClick={() => setIsFontConfigOpen(!isFontConfigOpen)} 
+                               className="p-1 rounded-full hover:bg-gray-700 transition-colors" 
+                               title="Configure Font"
+                           >
+                               <span className={`text-xs font-bold ${isFontConfigOpen ? 'text-brand-blue' : 'text-gray-400'}`}>Aa</span>
+                           </button>
+                           {isFontConfigOpen && (
+                               <div className="absolute top-full mt-2 right-0 bg-gray-700 border border-gray-600 rounded-md shadow-lg p-2 text-sm min-w-48 z-50">
+                                   <div className="text-gray-300 font-semibold mb-2">Font Family</div>
+                                   <div className="space-y-1">
+                                       {[
+                                           { value: 'font-mono', label: 'Monospace', family: 'ui-monospace, SFMono-Regular, "SF Mono", monospace' },
+                                           { value: 'font-sans', label: 'Inter', family: 'Inter, ui-sans-serif, system-ui, sans-serif' },
+                                           { value: 'font-["Open_Sans"]', label: 'Open Sans', family: '"Open Sans", ui-sans-serif, system-ui, sans-serif' },
+                                           { value: 'font-["Source_Sans_Pro"]', label: 'Source Sans Pro', family: '"Source Sans Pro", ui-sans-serif, system-ui, sans-serif' },
+                                           { value: 'font-["Lato"]', label: 'Lato', family: 'Lato, ui-sans-serif, system-ui, sans-serif' },
+                                           { value: 'font-["Roboto"]', label: 'Roboto', family: 'Roboto, ui-sans-serif, system-ui, sans-serif' },
+                                           { value: 'font-["JetBrains_Mono"]', label: 'JetBrains Mono', family: '"JetBrains Mono", ui-monospace, SFMono-Regular, monospace' }
+                                       ].map((font) => (
+                                           <button
+                                               key={font.value}
+                                               onClick={() => {
+                                                   setSelectedFont(font.value);
+                                                   setIsFontConfigOpen(false);
+                                               }}
+                                               className={`w-full text-left px-3 py-2 rounded hover:bg-gray-600 transition-colors ${
+                                                   selectedFont === font.value ? 'bg-brand-blue text-white' : 'text-gray-300'
+                                               }`}
+                                               style={{ fontFamily: font.family }}
+                                           >
+                                               {font.label}
+                                           </button>
+                                       ))}
+                                   </div>
+                               </div>
+                           )}
                        </div>
 
                     </div>
@@ -636,11 +679,11 @@ export const Editor: React.FC = () => {
                         onSaveTranscript={setTranscript}
                         onTranscriptPaste={handleTranscriptPaste}
                         textZoom={textZoom}
-                        isLineNumbersVisible={isLineNumbersVisible}
                         searchQuery={searchQuery}
                         activeMatchIndex={activeMatchGlobalIndex}
                         onFindWord={handleFindRequest}
                         onEditStart={handleEditStart}
+                        fontFamily={selectedFont}
                     />
                 </div>
             </div>
