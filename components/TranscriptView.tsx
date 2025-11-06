@@ -141,15 +141,27 @@ export const TranscriptView = forwardRef<TranscriptViewHandle, TranscriptViewPro
         setWordMappings(generateWordMappings(newText, words));
     }, [words, generateTranscriptText, generateWordMappings]);
 
-    // Handle text changes (GPT-4o style)
+    // Handle text changes (GPT-4o style) with cursor preservation
     const handleTextChange = useCallback((newText: string) => {
+        // Store cursor position before any updates
+        const currentCursorPos = textareaRef.current?.selectionStart || 0;
+        
         setState(prev => ({ ...prev, transcriptText: newText }));
         
         // Parse text back to words and apply interpolation
         const newWords = parsePastedTranscript(newText);
         const interpolatedWords = interpolateTimestamps(newWords);
         
-        onSaveTranscript(interpolatedWords);
+        // Defer the parent update to prevent immediate re-render
+        setTimeout(() => {
+            onSaveTranscript(interpolatedWords);
+            
+            // Restore cursor position after the update
+            if (textareaRef.current) {
+                textareaRef.current.selectionStart = currentCursorPos;
+                textareaRef.current.selectionEnd = currentCursorPos;
+            }
+        }, 0);
     }, [onSaveTranscript]);
 
     // Find word at cursor position
