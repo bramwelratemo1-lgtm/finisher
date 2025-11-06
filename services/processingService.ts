@@ -283,7 +283,7 @@ export const alignAndApplyTimestamps = (sourceWords: MatchedWord[], targetWords:
 export const parseMfa = (data: any): MatchedWord[] => {
     let wordList: any[];
 
-    // Case 1: The data is the array itself
+    // Case 1: The data is the array itself (user's format)
     if (Array.isArray(data)) {
         wordList = data;
     } 
@@ -306,19 +306,23 @@ export const parseMfa = (data: any): MatchedWord[] => {
     }
     
     // Now that we have the wordList array, proceed with mapping.
-    // Be flexible with property names like 'begin'/'start' and 'word'/'label'/'punctuated_word'.
+    // Handle the user's format with number, punctuated_word, cleaned_word, start, end
     const mappedWords = wordList.map((item, index) => {
+        // User's format already has punctuated_word and cleaned_word
         const text = item.punctuated_word || item.word || item.label || '';
+        const cleanedWord = item.cleaned_word || text.toLowerCase().replace(/[.,!?]/g, '');
+        
         return {
-            number: index + 1,
+            number: item.number || (index + 1),
             punctuated_word: text,
-            cleaned_word: text.toLowerCase().replace(/[.,!?]/g, ''),
+            cleaned_word: cleanedWord,
             start: item.start ?? item.begin ?? null,
             end: item.end ?? null,
         };
     });
 
-    return interpolateTimestamps(mappedWords);
+    // No interpolation needed - MFA data already has precise timestamps
+    return mappedWords;
 };
 
 export const parseWhisperJson = (data: any): MatchedWord[] => {
@@ -346,20 +350,51 @@ export const parseWhisperJson = (data: any): MatchedWord[] => {
 };
 
 export const parsePastedTranscript = (text: string): MatchedWord[] => {
-    const words = text.trim().split(/\s+/).filter(w => w);
-    if (words.length === 0) {
+    if (!text.trim()) {
         return [];
     }
 
-    const allWords: MatchedWord[] = words.map((word, index) => ({
-        punctuated_word: word,
-        cleaned_word: word.toLowerCase().replace(/[.,!?]/g, ''),
-        start: null,
-        end: null,
-        number: index + 1,
-        // The entire pasted text is one block, so only the first word marks a paragraph start.
-        isParagraphStart: index === 0,
-    }));
+    // Parse text preserving paragraph structure by detecting line breaks and speaker patterns
+    const lines = text.split('\n');
+    const allWords: MatchedWord[] = [];
+    let wordNumber = 1;
+    
+    // Speaker/timestamp pattern regex (matches various formats)
+    const speakerTimestampRegex = /^(\d{2}:\d{2}:\d{2}\.\d+)?\s*([A-Za-z][A-Za-z0-9\s]*:|\S+:)\s*/;
+    
+    lines.forEach((line, lineIndex) => {
+        const trimmedLine = line.trim();
+        if (!trimmedLine) return; // Skip empty lines
+        
+        let lineText = trimmedLine;
+        let speakerLabel: string | null = null;
+        
+        // Check if line starts with speaker tag or timestamp
+        const speakerMatch = lineText.match(speakerTimestampRegex);
+        if (speakerMatch) {
+            // Extract speaker from pattern like "00:12:34.5 S1:" or "Speaker 1:"
+            const speakerPart = speakerMatch[2];
+            if (speakerPart) {
+                speakerLabel = speakerPart.replace(':', '').trim();
+                lineText = lineText.replace(speakerTimestampRegex, '').trim();
+            }
+        }
+        
+        // Split remaining text into words
+        const words = lineText.split(/\s+/).filter(w => w.trim());
+        
+        words.forEach((word, wordIndex) => {
+            allWords.push({
+                punctuated_word: word,
+                cleaned_word: word.toLowerCase().replace(/[.,!?]/g, ''),
+                start: null, // Will be filled by interpolation or MFA matching
+                end: null,
+                number: wordNumber++,
+                speakerLabel: wordIndex === 0 ? speakerLabel : undefined,
+                isParagraphStart: wordIndex === 0, // First word of each line starts a new paragraph
+            });
+        });
+    });
     
     return allWords;
 };
