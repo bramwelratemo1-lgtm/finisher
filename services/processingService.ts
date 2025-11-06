@@ -113,14 +113,31 @@ export const processFormattedTranscriptWithMfa = (
         const { speaker, text } = extractSpeakerAndText(line);
 
         if (text) {
-            const { matchedWords, nextStartIdx } = matchParagraphWords(
-                text,
-                mfaWords,
-                currentMfaIdx
-            );
-            currentMfaIdx = nextStartIdx;
+            const transcriptWords = text.split(/\s+/).filter(Boolean).map(word => ({
+                number: 0,
+                punctuated_word: word,
+                cleaned_word: normalizeToken(word),
+                start: null,
+                end: null,
+                mfaSource: false,
+            }));
 
+            const matchedWords = advancedWordMatching(transcriptWords, mfaWords, currentMfaIdx);
+            
             if (matchedWords.length > 0) {
+                let lastMatchIndex = -1;
+                for(let i = 0; i < matchedWords.length; i++) {
+                    if(matchedWords[i].mfaSource) {
+                        const mfaIndex = mfaWords.findIndex(mfaWord => mfaWord.start === matchedWords[i].start && mfaWord.end === matchedWords[i].end && normalizeToken(mfaWord.cleaned_word) === normalizeToken(matchedWords[i].cleaned_word));
+                        if (mfaIndex > lastMatchIndex) {
+                            lastMatchIndex = mfaIndex;
+                        }
+                    }
+                }
+                if (lastMatchIndex !== -1) {
+                    currentMfaIdx = lastMatchIndex + 1;
+                }
+
                 matchedWords[0].isParagraphStart = true;
                 matchedWords[0].speakerLabel = speaker || undefined;
                 processedWords.push(...matchedWords);
