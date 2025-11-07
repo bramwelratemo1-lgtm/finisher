@@ -244,14 +244,19 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const canUndo = currentVersionIndex > 0;
     const canRedo = currentVersionIndex < transcriptVersions.length - 1;
 
-    const applyDriftCorrection = useCallback(() => {
+    const applyDriftCorrection = useCallback((startTime?: number) => {
         if (driftOffset === 0) return;
 
-        const correctedTranscript = currentTranscript.map(word => ({
-            ...word,
-            start: word.start !== null ? word.start + driftOffset : null,
-            end: word.end !== null ? word.end + driftOffset : null,
-        }));
+        const correctedTranscript = currentTranscript.map(word => {
+            if (word.start !== null && (startTime === undefined || word.start >= startTime)) {
+                return {
+                    ...word,
+                    start: word.start + driftOffset,
+                    end: word.end !== null ? word.end + driftOffset : null,
+                };
+            }
+            return word;
+        });
 
         const newVersion: TranscriptVersion = {
             name: `Drift Corrected (v${transcriptVersions.length + 1})`,

@@ -343,7 +343,7 @@ export const VirtualDataProvider: React.FC<{ children: React.ReactNode }> = ({ c
     const value: DataContextType = {
         driftOffset: 0,
         setDriftOffset: () => {},
-        applyDriftCorrection: () => {},
+        applyDriftCorrection: (startTime?: number) => {},
         audioFile,
         audioSrc,
         audioRef,
