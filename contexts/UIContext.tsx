@@ -87,13 +87,14 @@ export const UIProvider: React.FC<{ children: React.ReactNode }> = ({ children }
     //     return () => window.removeEventListener('keydown', handleKeyDown);
     // }, [shortcuts]);
 
-    const findNext = () => {
-        // Logic to find next match
-    };
+    const findNext = useCallback(() => {
+        // This logic will be handled in the Editor component, which has access to the search matches.
+        // This function is kept for context API consistency.
+    }, []);
 
-    const replaceNext = () => {
-        // Logic to replace next match
-    };
+    const replaceNext = useCallback(() => {
+        // This logic will be handled in the Editor component.
+    }, []);
 
     const closeFindReplace = () => {
         setFindReplaceVisible(false);

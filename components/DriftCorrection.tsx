@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { useData } from '../contexts/DataContext';
 
 const DriftCorrection: React.FC = () => {
-    const { driftOffset, setDriftOffset } = useData();
+    const { driftOffset, setDriftOffset, applyDriftCorrection } = useData();
     const [direction, setDirection] = useState<'forward' | 'backward'>('backward');
 
     const handleDriftChange = (amount: number) => {
@@ -19,6 +19,7 @@ const DriftCorrection: React.FC = () => {
             <button onClick={() => handleDriftChange(-0.1)} className="bg-gray-700 text-white rounded px-2 py-1">{'<'}</button>
             <input type="text" value={driftOffset.toFixed(2)} readOnly className="bg-gray-800 text-white w-16 text-center" />
             <button onClick={() => handleDriftChange(0.1)} className="bg-gray-700 text-white rounded px-2 py-1">{'>'}</button>
+            <button onClick={applyDriftCorrection} className="bg-blue-600 text-white rounded px-3 py-1">Apply</button>
         </div>
     );
 };

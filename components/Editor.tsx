@@ -652,7 +652,16 @@ export const Editor: React.FC = () => {
             </div>
             <div className="flex-1 overflow-hidden flex justify-center relative">
                  <div className="w-3/5 h-full">
-                    {findReplaceVisible && <FindReplace />}
+                    {findReplaceVisible && (
+                        <FindReplace
+                            onFindNext={handleNextMatch}
+                            onFindPrev={handlePrevMatch}
+                            onReplace={handleReplace}
+                            onReplaceAll={handleReplaceAll}
+                            matchesCount={searchMatches.length}
+                            currentMatchIndex={currentMatchIndex}
+                        />
+                    )}
                     <DriftCorrection />
                     <TranscriptView 
                         ref={transcriptViewRef}

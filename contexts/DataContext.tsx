@@ -244,6 +244,25 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const canUndo = currentVersionIndex > 0;
     const canRedo = currentVersionIndex < transcriptVersions.length - 1;
 
+    const applyDriftCorrection = useCallback(() => {
+        if (driftOffset === 0) return;
+
+        const correctedTranscript = currentTranscript.map(word => ({
+            ...word,
+            start: word.start !== null ? word.start + driftOffset : null,
+            end: word.end !== null ? word.end + driftOffset : null,
+        }));
+
+        const newVersion: TranscriptVersion = {
+            name: `Drift Corrected (v${transcriptVersions.length + 1})`,
+            words: correctedTranscript
+        };
+        const newVersions = [...transcriptVersions.slice(0, currentVersionIndex + 1), newVersion];
+        setTranscriptVersions(newVersions);
+        setCurrentVersionIndex(newVersions.length - 1);
+        setDriftOffset(0);
+    }, [currentTranscript, driftOffset, transcriptVersions, currentVersionIndex]);
+
     const value: DataContextType = {
         audioFile, audioSrc, audioRef, audioFileName, mfaData, mfaApplied, whisperData, whisperApplied,
         transcriptVersions, setTranscriptVersions, currentVersionIndex, setCurrentVersionIndex, diarizationSegments, speakerMap,
@@ -252,7 +271,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
         handleTranscriptPaste, handleFormattedTranscriptUpload, handleSpeakerMapUpdate, handleSpeakerMerge,
         handleReplaceAllSpeakerLabels, handleReplaceSelectedSpeakerLabels, handleReset,
         setTranscript, undo, redo, canUndo, canRedo, formattedTranscriptApplied, isDirty,
-        driftOffset, setDriftOffset,
+        driftOffset, setDriftOffset, applyDriftCorrection,
     };
 
     return <DataContext.Provider value={value}>{children}</DataContext.Provider>;

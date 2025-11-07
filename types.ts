@@ -120,6 +120,7 @@ export interface DataContextType {
     isDirty: boolean;
     driftOffset: number;
     setDriftOffset: React.Dispatch<React.SetStateAction<number>>;
+    applyDriftCorrection: () => void;
 }
 
 export interface UIContextType {
