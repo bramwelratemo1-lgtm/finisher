@@ -63,6 +63,10 @@ export interface ShortcutConfig {
     redo: string;
     interpolateEdits: string;
     toggleLineNumbers: string;
+    find: string;
+    replace: string;
+    driftForward: string;
+    driftBackward: string;
 }
 
 export interface TranscriptViewHandle {
@@ -114,6 +118,8 @@ export interface DataContextType {
     canRedo: boolean;
     formattedTranscriptApplied: boolean;
     isDirty: boolean;
+    driftOffset: number;
+    setDriftOffset: React.Dispatch<React.SetStateAction<number>>;
 }
 
 export interface UIContextType {
@@ -144,6 +150,17 @@ export interface UIContextType {
     updateShortcuts: (newShortcuts: ShortcutConfig) => void;
     currentTab: 'editor' | 'virtual' | 'gemini' | 'gpt4o';
     setCurrentTab: React.Dispatch<React.SetStateAction<'editor' | 'virtual' | 'gemini' | 'gpt4o'>>;
+    findQuery: string;
+    setFindQuery: React.Dispatch<React.SetStateAction<string>>;
+    replaceQuery: string;
+    setReplaceQuery: React.Dispatch<React.SetStateAction<string>>;
+    findReplaceVisible: boolean;
+    setFindReplaceVisible: React.Dispatch<React.SetStateAction<boolean>>;
+    activeMatchIndex: number;
+    setActiveMatchIndex: React.Dispatch<React.SetStateAction<number>>;
+    findNext: () => void;
+    replaceNext: () => void;
+    closeFindReplace: () => void;
 }
 
 export interface ChatContextType {

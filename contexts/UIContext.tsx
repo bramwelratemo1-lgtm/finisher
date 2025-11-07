@@ -19,6 +19,10 @@ const DEFAULT_SHORTCUTS: ShortcutConfig = {
     redo: 'Control+y',
     interpolateEdits: 'Control+s',
     toggleLineNumbers: 'Control+l',
+    find: 'Control+f',
+    replace: 'Control+h',
+    driftForward: 'Control+ArrowRight',
+    driftBackward: 'Control+ArrowLeft',
 };
 
 const loadInitialState = () => {
@@ -31,6 +35,11 @@ const loadInitialState = () => {
 
 export const UIProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
     const initialSavedState = useRef(loadInitialState()).current;
+
+    const [findQuery, setFindQuery] = useState('');
+    const [replaceQuery, setReplaceQuery] = useState('');
+    const [findReplaceVisible, setFindReplaceVisible] = useState(false);
+    const [activeMatchIndex, setActiveMatchIndex] = useState(-1);
     
     const [leftSidebarOpen, setLeftSidebarOpen] = useState(initialSavedState?.leftSidebarOpen ?? true);
     const [chatOpen, setChatOpen] = useState(initialSavedState?.chatOpen ?? false);
@@ -78,6 +87,21 @@ export const UIProvider: React.FC<{ children: React.ReactNode }> = ({ children }
     //     return () => window.removeEventListener('keydown', handleKeyDown);
     // }, [shortcuts]);
 
+    const findNext = () => {
+        // Logic to find next match
+    };
+
+    const replaceNext = () => {
+        // Logic to replace next match
+    };
+
+    const closeFindReplace = () => {
+        setFindReplaceVisible(false);
+        setFindQuery('');
+        setReplaceQuery('');
+        setActiveMatchIndex(-1);
+    };
+
     const value: UIContextType = {
         leftSidebarOpen, setLeftSidebarOpen, chatOpen, setChatOpen, isSettingsOpen, setIsSettingsOpen,
         isSpeakerEditorOpen, setIsSpeakerEditorOpen, isTextSpeakerEditorOpen, setIsTextSpeakerEditorOpen,
@@ -85,6 +109,8 @@ export const UIProvider: React.FC<{ children: React.ReactNode }> = ({ children }
         timelineZoom, setTimelineZoom, textZoom, setTextZoom, volume, setVolume,
         lastPlaybackTime, setLastPlaybackTime, shortcuts, updateShortcuts,
         currentTab, setCurrentTab,
+        findQuery, setFindQuery, replaceQuery, setReplaceQuery, findReplaceVisible, setFindReplaceVisible,
+        activeMatchIndex, setActiveMatchIndex, findNext, replaceNext, closeFindReplace,
     };
 
     return <UIContext.Provider value={value}>{children}</UIContext.Provider>;

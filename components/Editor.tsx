@@ -2,7 +2,8 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { TranscriptView, TranscriptViewHandle } from './TranscriptView';
 import { CanvasTimeline as SpeakerTimeline } from './timeline/CanvasTimeline'; // Use the new Canvas-based timeline.
 import { FileUpload } from './FileUpload';
-import { FindReplaceBar } from './FindReplaceBar';
+import FindReplace from './FindReplace';
+import DriftCorrection from './DriftCorrection';
 import { useData } from '../contexts/DataContext';
 import { useUI } from '../contexts/UIContext';
 import { useLineHighlight } from '../contexts/LineHighlightContext';
@@ -33,9 +34,7 @@ export const Editor: React.FC = () => {
     // Removed timeToScrollTo - now using seekToTime directly
 
     // Find and Replace State
-    const [isFindBarOpen, setIsFindBarOpen] = useState(false);
-    const [searchQuery, setSearchQuery] = useState('');
-    const [replaceQuery, setReplaceQuery] = useState('');
+    const { findReplaceVisible, setFindReplaceVisible, findQuery, setFindQuery, replaceQuery, setReplaceQuery } = useUI();
     const [searchMatches, setSearchMatches] = useState<number[]>([]);
     const [currentMatchIndex, setCurrentMatchIndex] = useState(-1);
     
@@ -62,20 +61,20 @@ export const Editor: React.FC = () => {
     const handleTextZoomOut = () => setTextZoom(Math.max(0.5, textZoom / 1.1));
     
     const handleFindRequest = useCallback((query: string) => {
-        setIsFindBarOpen(true);
-        setSearchQuery(query);
-    }, []);
+        setFindReplaceVisible(true);
+        setFindQuery(query);
+    }, [setFindReplaceVisible, setFindQuery]);
 
     // Effect to find matches when search query or transcript changes
     useEffect(() => {
-        if (!searchQuery) {
+        if (!findQuery) {
             setSearchMatches([]);
             setCurrentMatchIndex(-1);
             return;
         }
 
         const matches = currentTranscript.reduce((acc, word, index) => {
-            if (word.punctuated_word.toLowerCase().includes(searchQuery.toLowerCase())) {
+            if (word.punctuated_word.toLowerCase().includes(findQuery.toLowerCase())) {
                 acc.push(index);
             }
             return acc;
@@ -83,7 +82,7 @@ export const Editor: React.FC = () => {
         
         setSearchMatches(matches);
         setCurrentMatchIndex(matches.length > 0 ? 0 : -1);
-    }, [searchQuery, currentTranscript]);
+    }, [findQuery, currentTranscript]);
 
 
     useEffect(() => {
@@ -179,6 +178,7 @@ export const Editor: React.FC = () => {
         }
         
         const audio = audioRef.current;
+        const newTime = time + driftOffset;
         
         // Ensure audio is loaded and ready
         if (audio.readyState < 2) {
@@ -189,14 +189,16 @@ export const Editor: React.FC = () => {
         }
         
         // Validate time is within bounds
-        if (audio.duration && time > audio.duration) {
-            console.warn('Seek time exceeds duration:', time, 'vs', audio.duration);
-            time = audio.duration - 0.1; // Seek near end instead
+        if (audio.duration && newTime > audio.duration) {
+            console.warn('Seek time exceeds duration:', newTime, 'vs', audio.duration);
+            audio.currentTime = audio.duration - 0.1; // Seek near end instead
+        } else if (newTime < 0) {
+            audio.currentTime = 0;
+        } else {
+            audio.currentTime = newTime;
         }
         
         try {
-            audio.currentTime = time;
-            
             // Auto-play on word click for better UX with improved reliability
             if (audio.paused) {
                 const playPromise = audio.play();
@@ -291,6 +293,7 @@ export const Editor: React.FC = () => {
     };
 
     const activeMatchGlobalIndex = searchMatches[currentMatchIndex] ?? -1;
+    const { driftOffset } = useData();
     
     const handleReplace = useCallback(() => {
         if (activeMatchGlobalIndex === -1) return;
@@ -309,11 +312,11 @@ export const Editor: React.FC = () => {
     }, [activeMatchGlobalIndex, replaceQuery, currentTranscript, setTranscript]);
 
     const handleReplaceAll = useCallback(() => {
-        if (!searchQuery) return;
+        if (!findQuery) return;
 
         const newTranscript = currentTranscript
             .map(word => {
-                if (word.punctuated_word.toLowerCase().includes(searchQuery.toLowerCase())) {
+                if (word.punctuated_word.toLowerCase().includes(findQuery.toLowerCase())) {
                     return {
                         ...word,
                         punctuated_word: replaceQuery,
@@ -327,10 +330,10 @@ export const Editor: React.FC = () => {
 
         setTranscript(newTranscript);
         // After replacing all, close the find bar as the search is now invalid.
-        setIsFindBarOpen(false);
-        setSearchQuery('');
+        setFindReplaceVisible(false);
+        setFindQuery('');
         setReplaceQuery('');
-    }, [searchQuery, replaceQuery, currentTranscript, setTranscript]);
+    }, [findQuery, replaceQuery, currentTranscript, setTranscript, setFindReplaceVisible, setFindQuery, setReplaceQuery]);
     
     const handleEditStart = useCallback(() => {
         // Auto-pause on edit start for better focus
@@ -551,8 +554,8 @@ export const Editor: React.FC = () => {
                     </div>
 
                     <button
-                        onClick={() => setIsFindBarOpen(!isFindBarOpen)}
-                        className={`p-2 ml-4 rounded-md hover:bg-gray-600 transition-colors flex items-center gap-2 text-sm ${isFindBarOpen ? 'bg-brand-blue/50 text-white' : 'bg-gray-700 text-gray-300'}`}
+                        onClick={() => setFindReplaceVisible(!findReplaceVisible)}
+                        className={`p-2 ml-4 rounded-md hover:bg-gray-600 transition-colors flex items-center gap-2 text-sm ${findReplaceVisible ? 'bg-brand-blue/50 text-white' : 'bg-gray-700 text-gray-300'}`}
                         title="Find and Replace in transcript"
                     >
                         <SearchIcon className="w-5 h-5" />
@@ -649,25 +652,8 @@ export const Editor: React.FC = () => {
             </div>
             <div className="flex-1 overflow-hidden flex justify-center relative">
                  <div className="w-3/5 h-full">
-                    {isFindBarOpen && (
-                        <FindReplaceBar 
-                            searchQuery={searchQuery}
-                            onSearchQueryChange={setSearchQuery}
-                            replaceQuery={replaceQuery}
-                            onReplaceQueryChange={setReplaceQuery}
-                            onClose={() => {
-                                setIsFindBarOpen(false);
-                                setSearchQuery('');
-                                setReplaceQuery('');
-                            }}
-                            onNext={handleNextMatch}
-                            onPrev={handlePrevMatch}
-                            onReplace={handleReplace}
-                            onReplaceAll={handleReplaceAll}
-                            matchesCount={searchMatches.length}
-                            currentMatchNumber={currentMatchIndex + 1}
-                        />
-                    )}
+                    {findReplaceVisible && <FindReplace />}
+                    <DriftCorrection />
                     <TranscriptView 
                         ref={transcriptViewRef}
                         words={currentTranscript} 
@@ -675,7 +661,7 @@ export const Editor: React.FC = () => {
                         onSaveTranscript={setTranscript}
                         onTranscriptPaste={handleTranscriptPaste}
                         textZoom={textZoom}
-                        searchQuery={searchQuery}
+                        searchQuery={findQuery}
                         activeMatchIndex={activeMatchGlobalIndex}
                         onFindWord={handleFindRequest}
                         onEditStart={handleEditStart}

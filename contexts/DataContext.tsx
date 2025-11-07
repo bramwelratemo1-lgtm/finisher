@@ -27,6 +27,7 @@ const loadInitialState = () => {
 export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
     const initialSavedState = useRef(loadInitialState()).current;
     
+    const [driftOffset, setDriftOffset] = useState<number>(0);
     const [audioFile, setAudioFile] = useState<File | null>(null);
     const [audioSrc, setAudioSrc] = useState<string | null>(null);
     const audioRef = useRef<HTMLAudioElement>(null);
@@ -251,6 +252,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
         handleTranscriptPaste, handleFormattedTranscriptUpload, handleSpeakerMapUpdate, handleSpeakerMerge,
         handleReplaceAllSpeakerLabels, handleReplaceSelectedSpeakerLabels, handleReset,
         setTranscript, undo, redo, canUndo, canRedo, formattedTranscriptApplied, isDirty,
+        driftOffset, setDriftOffset,
     };
 
     return <DataContext.Provider value={value}>{children}</DataContext.Provider>;

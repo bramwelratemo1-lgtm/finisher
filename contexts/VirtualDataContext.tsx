@@ -341,6 +341,8 @@ export const VirtualDataProvider: React.FC<{ children: React.ReactNode }> = ({ c
     }, [canRedo]);
 
     const value: DataContextType = {
+        driftOffset: 0,
+        setDriftOffset: () => {},
         audioFile,
         audioSrc,
         audioRef,
